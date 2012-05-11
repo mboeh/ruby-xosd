@@ -1,0 +1,142 @@
+ruby-xosd 1.1.0: On-Screen Display for X11
+------------------------------------------
+
+ruby-xosd is a simple binding to the xosd library for the Ruby programming 
+language that allows displaying of arbitrary notifications in X11.
+It is useful for on-screen notifications; in addition to single or multi-line
+text displays, xosd also provides "slider" and "progress bar" style displays,
+which can be mixed and matched with text in the same display.
+
+An xosd window is a shaped, unmanaged window on top of all others. It lasts
+as long as its parent process is running or until it is hidden or destroyed.
+
+SETUP AND INSTALLATION
+
+* You'll obviously need a system with Ruby (1.8 is what I'm using) and X11.
+  X11 bindings for Ruby are not necessary. I'm using Linux; however, the
+  binding should work wherever xosd and Ruby do.
+* Speaking of xosd, you'll need to get it at <http://www.ignavus.net/software.html>.
+  Right now I'm at 2.2.8, but barring any major API changes, it should work with
+  other versions.
+* Now that everything's ready, just use the following commands to install:
+  $ ruby extconf.rb
+  $ make
+  $ make install
+* There you are.
+
+COMPONENTS
+
+ruby-xosd is more than just a binding. It also comes with useful classes for
+higher-level access to OSD functions. The classes included (all in module XOSD)
+are:
+
+* Xosd (xosd.so)
+  The main binding. Supports every documented feature of libxosd, as far as I
+  can tell, with two caveats:
+  - At this time, xosd_wait_until_no_display isn't quite implemented. It has
+    been partially replaced with Xosd#wait(n), which totally ignores the
+    xosd function and instead uses Kernel#sleep. (Using C sleeping functions
+    is extremely bad for threaded Ruby programs.)
+    The function of waiting for the timeout to occur is not yet implemented.
+    I'm not sure how I'm going to do that yet.
+  - xosd_get_colour is not implemented. Xosd#color returns the string value
+    of the color, which is a lot more useful by my count. If anyone reallyt
+    needs it, I'll implemenet Xosd#rgb or something.
+* XosdScroll (xosd_scroll.rb)
+  A scrolling Xosd that automatically scrolls downwards when full.
+* XosdBuffer (xosd_buf.rb)
+  A bidirectional scrolling Xosd that stores its history.
+* XosdBar
+  A sugar class that displays a bar with a title above, with a more friendly
+  set of methods (XosdBar#value, XosdBar#title=, etc.)
+* XosdSlider
+  XosdBar for sliders. :-p
+
+PROGRAMS
+
+* rb_xosd_cat
+  A clone of the osd_cat that comes with xosd. Not complete yet (missing some
+  command line arguments), but does enough to run my old osd_clock script.
+  Speaking of which...
+
+* osd_clock
+  This is the NEW osd_clock script, which I did this entire extension for.
+  It replaces a clunky ol' shell script I used to use, and is now rich with
+  VITAMINS.
+  
+  It's fully configurable with a YAML config file (usually in ~/.osd_clock/config),
+  and you can reload the configuration with SIGUSR1. Its pid is stored in
+  ~/.osd_clock/pid.
+
+* osd_buf_server, osd_buf_cat
+  A rather useful, multi-client OSD server. Basically, it's nice for occasional
+  popups of information. One osd_buf_server serves multiple osd_buf_cats; they
+  communicate via DRb. osd_buf_cat works like cat.
+   
+  I use the osd_buf_server with a custom naim plugin to display IM notifications.
+  It's really nice, fast, and lightweight. The configuration of osd_buf_server
+  is nearly identical to osd_clock, except it also stores the DRb port in
+  ~/.osd_buf/port. osd_buf_cat uses this, so you can change the port used with
+  impunity.
+
+BASIC USE
+
+  require 'xosd'
+
+  osd = XOSD::Xosd.new(5)
+  osd.display_message(0, "this is a message")
+  osd.display_slider(1, 34)     # percent
+  osd.display_bar(2, 57)        # percent
+  osd.bar_length = 50           # Shorten that bar.
+  osd.bar_length = -1           # And, back to normal.
+  osd.scroll(1)                 # message disappears
+  osd.scroll(2)                 # All disappears
+  osd.display_message(1, "textery")
+  osd.color = "red"             # Instant change
+  osd.color = "#fg4d5f"         # #rrggbb works too
+  osd.position = XOSD::MIDDLE   # Middle of the screen, vertically
+  osd.position = XOSD::BOTTOM   # Starts at XOSD::TOP
+  osd.align = XOSD::CENTER      # left to right
+  osd.align = XOSD::RIGHT       # Now we're in the bottom right
+  osd.hide                      # Now it's gone! SORCERY!
+  osd.vertical_offset = 50 
+  osd.horizontal_offset = 50    # From the near edge -- thus, up and left
+  osd.show                      # YOU MONSTER! It's back!
+  osd.font = "fixed"            # That's its default anyway.
+  osd.font = "-adobe-courier-*-r-*-*-14"       # There's a big one for you.
+                                # No, no Xft support yet. Ask the xosd guy maybe.
+  osd.outline_offset = 1        # Outline the text.
+  osd.outline_color = "red"     # Defaults to black...
+  osd.outline_offset = 0        # Now it's gone.
+  osd.shadow_offset = 3         # A drop shadow 3 pixels offset.
+  osd.shadow_color = "blue"     # Same as the other color setters...
+  osd.timeout = 5               # Now, the text disappears in 5 seconds.
+  osd.wait(5)                   # Or you can display it and bide your time until
+                                # it vanishes.
+
+DOCUMENTATION
+
+Most of ruby-xosd is documented using the RDoc format. Running rdoc should be all
+you need to churn out some docs. However, xosd.c isn't fully documented yet.
+This is because I am extremely lazy.
+
+The good news is that the above "BASIC USE" section more or less entirely documents
+XOSD::Xosd (it's very simple), and the use of the other classes is dead simple
+and documented.
+
+CREDITS
+
+The author of this Ruby extension is Matt Boeh <mboeh@desperance.net>, a student,
+webmaster, and Ruby enthusiast. He uses xosd for a wide variety of notifications
+and status displays, being a big fat slobbery data dweeb.
+
+If you like this extension, please email me. There might also be updates or new
+bits of fun at <http://djur.desperance.net/ruby/>.
+
+The author(s) of xosd reside at <http://www.ignavus.net>. It's a really nice,
+clean library, and was fun to work with.
+
+And, as nobody can ever say enough, Matz for an awesome language. Here's to
+rite!
+
+THE END.

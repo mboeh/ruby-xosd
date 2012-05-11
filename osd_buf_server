@@ -1,0 +1,108 @@
+#!/usr/bin/env ruby
+# osd_buf_server -- an on-screen buffer that can take multiple inputs.
+# Yes, this is copied mostly from osd_clock.
+
+# This will eventually be command-line configurable, but as it is, it's pretty
+# damn simple.
+require 'xosd_scroll'
+require 'drb'
+require 'yaml'
+
+$config_dir = File::join(ENV['HOME'], ".osd_buf")
+$config_file = File::join($config_dir, "config")
+$pid_file = File::join($config_dir, "pid")
+$port = "8047"
+$port_file = File::join($config_dir, "port")
+$lines = 3 
+
+def setup
+  if not test(?d, $config_dir) then
+    Dir::mkdir($config_dir)
+  end
+
+  File.open($pid_file, "w") do |file|
+    file.write(Process::pid)
+  end
+
+  File.open($port_file, "w") do |file|
+    file.write($port)
+  end
+
+end
+
+def config
+  chash = {}
+  if test(?e, $config_file) then
+    chash = YAML::load(File.open($config_file))
+  end
+  if chash.has_key?("align") then
+    chash['align'] =
+      case chash['align']
+      when /center/i
+        XOSD::CENTER
+      when /right/i
+        XOSD::RIGHT
+      when /left/i
+        XOSD::LEFT
+      else
+        chash['align'].to_i
+      end
+  end
+
+  if chash.has_key?("position") then
+    chash['position'] =
+      case chash['position']
+      when /top/i
+        XOSD::TOP
+      when /middle/i
+        XOSD::MIDDLE
+      when /bottom/i
+        XOSD::BOTTOM
+      else
+        chash['position'].to_i
+      end
+  end
+
+  return chash
+end
+
+catch(:finish) do
+  setup
+  trap("QUIT") do
+    throw :finish
+  end
+
+  trap("INT") do
+    throw :finish
+  end
+  
+  while true do
+    osd = XOSD::XosdScroll.new($lines)
+    dserv = DRb.start_service("druby://localhost:#$port", osd)
+    catch(:reconfig) do
+      cfig = config
+      
+      trap("USR1") do
+        throw :reconfig
+      end
+
+      osd.align = cfig['align'] || XOSD::RIGHT
+      osd.position = cfig['position'] || XOSD::BOTTOM
+      osd.vertical_offset = cfig['vertical_offset'] || 6
+      osd.horizontal_offset = cfig['horizontal_offset'] || 0
+      osd.outline_offset = cfig['outline_offset'] || 1
+      osd.outline_color = cfig['outline_color'] || "black"
+      osd.font = cfig['font'] || "-*-fixed-*-*-*-*-18-*-*-*-*-*-*-*"
+      osd.color = cfig['color'] || "green"
+      osd.shadow_offset = cfig['shadow_offset'] || 0
+      osd.shadow_color = cfig['shadow_color'] || "black"
+      osd.timeout = 5
+
+      dserv.thread.join
+    end
+    osd.hide
+    dserv.stop_service
+  end
+end
+
+File.unlink($pid_file)

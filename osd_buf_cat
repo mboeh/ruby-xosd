@@ -1,0 +1,16 @@
+#!/usr/bin/env ruby
+# osd_buf_cat -- writes text to an osd_buf_server.
+
+require 'drb'
+
+$config_dir = File::join(ENV['HOME'], ".osd_buf")
+$port_file = File::join($config_dir, "port")
+
+port = File.open($port_file).read.to_i
+DRb.start_service()
+osd = DRbObject.new(nil, "druby://localhost:#{port}")
+
+while line = gets do
+  osd.puts(line.chomp)
+end
+

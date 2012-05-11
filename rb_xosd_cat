@@ -1,0 +1,110 @@
+#!/usr/bin/env ruby
+# rb_xosd_cat -- osd_cat using ruby-xosd, proof of concept
+
+require 'optparse'
+require 'ostruct'
+require 'xosd_scroll'
+
+def parse(args)
+  options = OpenStruct.new
+  options.pos = XOSD::TOP
+  options.offset = 0
+  options.align = XOSD::LEFT
+  options.indent = 0
+  options.font = "fixed"
+  options.color = "green"
+  options.delay = 5
+  options.lines = 5
+  options.shadow = 0
+  options.shadowcolour = "black"
+  options.outline = 0
+  options.outlinecolour = "black"
+  options.age = 0
+  options.wait = 0
+
+  opts = OptionParser.new do |opts|
+    opts.banner = "Usage: #$0 [options]"
+    opts.separator ""
+    opts.separator "Specific options:"
+
+    opts.on("-p", "--pos POS",
+            "The vertical position of the text. POS can be top, middle, or bottom. The default is top.") do |p|
+      case p
+      when /top/i
+        options.pos = XOSD::TOP
+      when /middle/i
+        options.pos = XOSD::MIDDLE
+      when /bottom/i
+        options.pos = XOSD::BOTTOM
+      end
+    end
+    
+    opts.on("-o", "--offset OFFSET") do |o|
+      options.offset = o.to_i
+    end
+
+    opts.on("-A", "--align ALIGN") do |a| 
+      case a
+      when /left/i
+        options.align = XOSD::LEFT
+      when /center/i
+        options.align = XOSD::CENTER
+      when /right/i
+        options.align = XOSD::RIGHT
+      end
+    end
+    
+    opts.on("-i", "--indent OFFSET") do |o|
+      options.indent = o.to_i
+    end
+    
+    opts.on("-f", "--font FONT") do |f|
+      options.font = f
+    end
+    
+    opts.on("-c", "--colour COLOUR") do |o|
+      options.color = o
+    end
+    
+    opts.on("-d", "--delay SECONDS") do |o|
+      options.delay = o.to_i
+    end
+
+    opts.on("-l", "--lines LINES") do |o|
+      options.lines = o.to_i
+    end
+
+    opts.on("-O", "--outline OFFSET") do |o|
+      options.outline = o.to_i
+    end
+
+    opts.on("-u", "--outlinecolour OFFSET") do |o|
+      options.outline_color = o
+    end
+
+  end
+  opts.parse!(args)
+  options
+end
+
+options = parse(ARGV)
+
+osd = XOSD::XosdScroll.new(options.lines)
+osd.position = options.pos
+osd.vertical_offset = options.offset
+osd.align = options.align
+osd.horizontal_offset = options.indent
+osd.font = options.font
+osd.color = options.color
+osd.shadow_offset = options.shadow
+osd.shadow_color = options.shadowcolour
+osd.outline_offset = options.outline
+osd.outline_color = options.outlinecolour
+osd.timeout = options.delay
+
+while line = $stdin.gets do
+  line.chomp!
+  osd << line
+end
+
+osd.wait(osd.timeout)
